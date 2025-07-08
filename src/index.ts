@@ -101,7 +101,6 @@ preAuthRoutes.filter(route => !(route as any).unsecured).forEach((route) => {
     const paymentMiddleware = createPaymentMiddleware({
       wallet,
       calculateRequestPrice: async (req) => {
-        return 0
         if (req.url === '/upload') {
           const { fileSize, retentionPeriod } = (req.body as any) || {}
           if (!fileSize || !retentionPeriod) return 0
