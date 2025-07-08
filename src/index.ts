@@ -16,13 +16,6 @@ const SERVER_PRIVATE_KEY = process.env.SERVER_PRIVATE_KEY as string
 const HTTP_PORT = process.env.HTTP_PORT || 8080
 
 const app = express()
-app.use(express.static(path.join(__dirname, '../public')))
-app.use(
-  '/put',
-  bodyparser.raw({ type: '*/*', limit: '2gb' })
-)
-app.use(bodyparser.json({ limit: '1gb', type: 'application/json' }))
-
 // This allows the API to be used when CORS is enforced
 app.use((req: Request, res: Response, next: NextFunction) => {
   res.header('Access-Control-Allow-Origin', '*')
@@ -36,6 +29,12 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     next()
   }
 })
+app.use(express.static(path.join(__dirname, '../public')))
+app.use(
+  '/put',
+  bodyparser.raw({ type: '*/*', limit: '2gb' })
+)
+app.use(bodyparser.json({ limit: '1gb', type: 'application/json' }))
 
 app.use((req: Request, res: Response, next: NextFunction) => {
   console.log(`[${req.method}] <- ${req.url}`);
