@@ -1,25 +1,25 @@
-import { Storage } from '@google-cloud/storage';
 import createUHRPAdvertisement from '../utils/createUHRPAdvertisement';
 import { Request, Response } from 'express';
-import { StorageUtils } from '@bsv/sdk';
+import { Hash, StorageUtils, Utils } from '@bsv/sdk';
+import fs from 'fs'
+import { getWallet } from '../utils/walletSingleton';
+import path from 'path';
+import bodyparser from 'body-parser';
 
 const {
-  ADMIN_TOKEN,
-  HOSTING_DOMAIN,
-  GCP_BUCKET_NAME
+  HOSTING_DOMAIN
 } = process.env
 
-const storage = new Storage()
-
 interface AdvertiseRequest extends Request {
-  body: {
-    adminToken: string
+  query: {
+    uploader: string
     uhrpUrl: string
-    uploaderIdentityKey: string
-    objectIdentifier: string
-    fileSize: number
-    expiryTime: number
-  }
+    objectID: string
+    fileSize: string
+    expiry: string
+    hmac: string
+  },
+  body: Uint8Array
 }
 
 interface AdvertiseResponse {
@@ -29,34 +29,51 @@ interface AdvertiseResponse {
 }
 
 const advertiseHandler = async (req: AdvertiseRequest, res: Response<AdvertiseResponse>) => {
-  if (typeof ADMIN_TOKEN !== 'string' || ADMIN_TOKEN.length <= 10 || req.body.adminToken !== ADMIN_TOKEN) {
-    return res.status(401).json({
+  const wallet = await getWallet()
+
+  // Verify size
+  if (Number(req.query.fileSize) !== req.body.byteLength) {
+    return res.status(400).json({
       status: 'error',
-      code: 'ERR_UNAUTHORIZED',
-      description: 'Failed to advertise hosting commitment!'
+      description: 'Size mismatch'
     })
   }
 
+  // Verify hmac
+  const str = `fileSize=${req.query.fileSize}&objectID=${req.query.objectID}&expiry=${req.query.expiry}&uploader=${req.query.uploader}`
+    const { valid } = await wallet.verifyHmac({
+      protocolID: [2, 'storage upload'],
+      keyID: '1',
+      data: Utils.toArray(str, 'utf8'),
+      hmac: Utils.toArray(req.query.hmac, 'hex')
+    })
+
+  // Verify no file exists with the same object ID
+  if (fs.existsSync(path.join(__dirname, `../../public/cdn/${req.query.objectID}`))) {
+    return res.status(400).json({
+      status: 'error',
+      description: 'File exists'
+    })
+  }
+
+  // Write file
+  fs.writeFileSync(path.join(__dirname, `../../public/cdn/${req.query.objectID}`), req.body)
+
+  // Create UHRP ad under /cdn
   try {
-    const expiryTime = Number(req.body.expiryTime) // in seconds
-    
+    if (HOSTING_DOMAIN?.startsWith('localhost')) {
+      console.warn('Not advertising, loalhost')
+      throw new Error('Not advertising in localhost')
+    }
+    const expiryTime = Math.floor(new Date(req.query.expiry).getTime() / 1000)
     await createUHRPAdvertisement({
-      hash: StorageUtils.getHashFromURL(req.body.uhrpUrl),
-      objectIdentifier: req.body.objectIdentifier,
-      url: `${HOSTING_DOMAIN}/cdn/${req.body.objectIdentifier}`,
-      uploaderIdentityKey: req.body.uploaderIdentityKey,
+      hash: Hash.sha256(Array.from(req.body)),
+      objectIdentifier: req.query.objectID,
+      url: `${HOSTING_DOMAIN}/cdn/${req.query.objectID}`,
+      uploaderIdentityKey: req.query.uploader,
       expiryTime,
-      contentLength: req.body.fileSize
+      contentLength: req.body.byteLength
     })
-
-    const storageFile = storage
-    .bucket(GCP_BUCKET_NAME as string)
-    .file(`cdn/${req.body.objectIdentifier}`)
-    
-    await storageFile.setMetadata({
-      customTime: new Date((expiryTime + 300) * 1000).toISOString()
-    })
-
     res.status(200).json({ status: 'success' })
   } catch (error) {
     console.error('Error processing advertisement:', error)
@@ -69,16 +86,7 @@ const advertiseHandler = async (req: AdvertiseRequest, res: Response<AdvertiseRe
 }
 
 export default {
-  type: 'post',
-  path: '/advertise',
-  summary: 'Administrative endpoint to trigger UHRP advertisements when new files are uploaded.',
-  parameters: {
-    adminToken: 'Server admin token',
-    uhrpUrl: 'The UHRP URL string to advertise',
-    objectIdentifier: 'The ID of this contract',
-    fileSize: 'The length of the file'
-  },
-  exampleResponse: { status: 'success' },
-  errors: ['ERR_UNAUTHORIZED'],
+  type: 'put',
+  path: '/put',
   func: advertiseHandler
 }

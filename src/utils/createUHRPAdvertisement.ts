@@ -1,6 +1,5 @@
 import { PushDrop, PrivateKey, Transaction, StorageUtils, Utils, AtomicBEEF, SHIPBroadcaster } from "@bsv/sdk"
 import { getWallet } from "./walletSingleton"
-import { Setup } from "@bsv/wallet-toolbox"
 
 const SERVER_PRIVATE_KEY = process.env.SERVER_PRIVATE_KEY as string
 const BSV_NETWORK = process.env.BSV_NETWORK as 'mainnet' | 'testnet'
@@ -51,11 +50,7 @@ export default async function createUHRPAdvertisement({
   ]
   console.log('fields', fields)
 
-  const wallet = await Setup.createWalletClientNoEnv({
-    chain: BSV_NETWORK === 'mainnet' ? 'main' : 'test',
-    rootKeyHex: SERVER_PRIVATE_KEY,
-    storageUrl: WALLET_STORAGE_URL
-  })
+  const wallet = await getWallet()
   const pushdrop = new PushDrop(wallet)
 
   const lockingScript = await pushdrop.lock(
@@ -74,7 +69,15 @@ export default async function createUHRPAdvertisement({
       satoshis: 1,
       basket: 'uhrp advertisements',
       outputDescription: 'UHRP advertisement token',
-      tags: [`uhrp_url_${Utils.toHex(Utils.toArray(uhrpURL, 'utf8'))}`, `object_identifier_${Utils.toHex(Utils.toArray(objectIdentifier, 'utf8'))}`, `uploader_identity_key_${uploaderIdentityKey}`, `expiry_time_${expiryTimeSeconds}`]
+      tags: [
+        `uhrp_url_${Utils.toHex(Utils.toArray(uhrpURL, 'utf8'))}`,
+        `object_identifier_${Utils.toHex(Utils.toArray(objectIdentifier, 'utf8'))}`,
+        `uploader_identity_key_${uploaderIdentityKey}`,
+        `expiry_time_${expiryTimeSeconds}`,
+        `name_file`,
+        `content_type_application/octet-stream`,
+        `size_${contentLength}`
+      ]
     }],
     description: 'UHRP Content Availability Advertisement',
     options: {

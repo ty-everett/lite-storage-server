@@ -1,11 +1,6 @@
-// /utils/getMetadata.ts
-import { Storage } from '@google-cloud/storage'
 import { getWallet } from './walletSingleton'
-import upload from '../routes/upload'
 import { Utils } from '@bsv/sdk'
 
-const storage = new Storage()
-const { GCP_BUCKET_NAME } = process.env
 
 interface FileMetadata {
   objectIdentifier: string
@@ -34,7 +29,7 @@ export async function getMetadata(uhrpUrl: string, uploaderIdentityKey: string, 
     offset: offset !== undefined ? offset : 0
   })
 
-  let objectIdentifier
+  let objectIdentifier, name, contentType, size
   // Farthest expiration time given in seconds
   let maxpiry = 0
   // Finding the identifier for the file with the maxpiry date
@@ -42,33 +37,29 @@ export async function getMetadata(uhrpUrl: string, uploaderIdentityKey: string, 
     if (!out.tags) continue
     const objectIdTag = out.tags.find(t => t.startsWith('object_identifier_'))
     const expiryTag = out.tags.find(t => t.startsWith('expiry_time_'))
-    if (!objectIdTag || !expiryTag) continue
+    const nameTag = out.tags.find(t => t.startsWith('name_'))
+    const sizeTag = out.tags.find(t => t.startsWith('size_'))
+    const contentTypeTag = out.tags.find(t => t.startsWith('content_type_'))
+    if (!objectIdTag || !expiryTag || !nameTag || !sizeTag || !contentTypeTag) continue
 
     const expiryNum = parseInt(expiryTag.substring('expiry_time_'.length), 10) || 0
 
     if (expiryNum > maxpiry) {
       maxpiry = expiryNum
       objectIdentifier = Utils.toUTF8(Utils.toArray(objectIdTag.substring('object_identifier_'.length), 'hex'))
+      name = nameTag
+      size = sizeTag
+      contentType = contentTypeTag
     }
   }
 
-  if (!objectIdentifier) {
+  if (!objectIdentifier || !name || !size || !contentType) {
     throw new Error(`No advertisement found for uhrpUrl: ${uhrpUrl} uploaderIdentityKey: ${uploaderIdentityKey}`)
   }
 
   if (Date.now() > maxpiry * 1000) {
     throw new Error(`Advertisement for uhrpUrl: ${uhrpUrl} has expired`)
   }
-
-  // Fetch GCS metadata
-  const file = storage.bucket(GCP_BUCKET_NAME!).file(`cdn/${objectIdentifier}`)
-  const [gcsMetadata] = await file.getMetadata()
-
-  const {
-    name,
-    size,
-    contentType = '',
-  } = gcsMetadata
 
   return {
     objectIdentifier,

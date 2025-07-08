@@ -1,4 +1,3 @@
-import { Storage } from '@google-cloud/storage'
 import { Request, Response } from 'express'
 import { getWallet } from '../utils/walletSingleton'
 import { Utils } from '@bsv/sdk'
@@ -24,6 +23,13 @@ interface ListResponse {
 }
 
 const listHandler = async (req: ListRequest, res: Response<ListResponse>) => {
+  if (!req.auth.identityKey || req.auth.identityKey === 'unknown') {
+      return res.status(400).json({
+        status: 'error',
+        code: 'ERR_MISSING_IDENTITY_KEY',
+        description: 'Missing authfetch identityKey.'
+      })
+    }
   try {
     const identityKey = req.auth.identityKey
     if (!identityKey) {

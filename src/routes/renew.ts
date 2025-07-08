@@ -1,13 +1,9 @@
 import { Request, Response } from 'express'
-import { Storage } from '@google-cloud/storage'
 import getPriceForFile from '../utils/getPriceForFile'
 import { getWallet } from '../utils/walletSingleton'
-import { LockingScript, PrivateKey, PushDrop, SHIPBroadcaster, StorageUtils, TopicBroadcaster, Transaction, UnlockingScript, Utils } from '@bsv/sdk'
+import { PushDrop, SHIPBroadcaster, StorageUtils, TopicBroadcaster, Transaction, UnlockingScript, Utils } from '@bsv/sdk'
 import { getMetadata } from '../utils/getMetadata'
 
-const storage = new Storage()
-const GCP_BUCKET_NAME = process.env.GCP_BUCKET_NAME as string
-const SERVER_PRIVATE_KEY = process.env.SERVER_PRIVATE_KEY as string
 const BSV_NETWORK = process.env.BSV_NETWORK as 'mainnet' | 'testnet'
 
 interface RenewRequest extends Request {
@@ -32,6 +28,13 @@ interface RenewResponse {
 }
 
 const renewHandler = async (req: RenewRequest, res: Response<RenewResponse>) => {
+  if (!req.auth.identityKey || req.auth.identityKey === 'unknown') {
+      return res.status(400).json({
+        status: 'error',
+        code: 'ERR_MISSING_IDENTITY_KEY',
+        description: 'Missing authfetch identityKey.'
+      })
+    }
   try {
     const { identityKey } = req.auth
     if (!identityKey) {
@@ -65,7 +68,6 @@ const renewHandler = async (req: RenewRequest, res: Response<RenewResponse>) => 
 
     // Convert to MS to create an ISO string
     const newExpiryTimeSeconds = prevExpiryTime + (additionalMinutes * 60)
-    const newCustomTimeIso = new Date(newExpiryTimeSeconds * 1000).toISOString()
 
     const fileSizeNum = parseInt(size, 10) || 0
     let amount = 0
@@ -207,10 +209,6 @@ const renewHandler = async (req: RenewRequest, res: Response<RenewResponse>) => 
     })
 
     await broadcaster.broadcast(Transaction.fromAtomicBEEF(tx))
-
-    // Setting the new expiry time in the actual database
-    await storage.bucket(GCP_BUCKET_NAME).file(`cdn/${objectIdentifier}`)
-      .setMetadata({ customTime: newCustomTimeIso })
 
     return res.status(200).json({
       status: 'success',

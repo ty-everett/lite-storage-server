@@ -1,10 +1,5 @@
 import { Request, Response } from 'express'
-import { Storage } from '@google-cloud/storage'
-import { getWallet } from '../utils/walletSingleton'
 import { getMetadata } from '../utils/getMetadata'
-
-const storage = new Storage()
-const { GCP_BUCKET_NAME } = process.env
 
 interface FindRequest extends Request {
     auth: {
@@ -32,6 +27,13 @@ interface FindResponse {
 }
 
 const findHandler = async (req: FindRequest, res: Response<FindResponse>) => {
+    if (!req.auth.identityKey || req.auth.identityKey === 'unknown') {
+      return res.status(400).json({
+        status: 'error',
+        code: 'ERR_MISSING_IDENTITY_KEY',
+        description: 'Missing authfetch identityKey.'
+      })
+    }
     try {
         const { identityKey } = req.auth
         if (!identityKey) {

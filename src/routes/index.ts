@@ -1,4 +1,4 @@
-import advertise from './put';
+import put from './put';
 import quote from './quote';
 import upload from './upload';
 import list from './list';
@@ -7,7 +7,7 @@ import find from './find';
 
 const routes = {
   preAuth: [
-    advertise,
+    put,
     quote
   ],
   postAuth: [

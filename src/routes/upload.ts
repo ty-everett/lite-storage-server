@@ -28,7 +28,7 @@ interface UploadResponse {
 
 export async function uploadHandler(req: UploadRequest, res: Response<UploadResponse>) {
   try {
-    if (!req.auth.identityKey) {
+    if (!req.auth.identityKey || req.auth.identityKey === 'unknown') {
       return res.status(400).json({
         status: 'error',
         code: 'ERR_MISSING_IDENTITY_KEY',

@@ -10,11 +10,17 @@ import { getWallet } from './utils/walletSingleton'
 import routes from './routes'
 import getPriceForFile from './utils/getPriceForFile'
 import { getMetadata } from './utils/getMetadata'
+import path from 'path'
 
 const SERVER_PRIVATE_KEY = process.env.SERVER_PRIVATE_KEY as string
 const HTTP_PORT = process.env.HTTP_PORT || 8080
 
 const app = express()
+app.use(express.static(path.join(__dirname, '../public')))
+app.use(
+  '/put',
+  bodyparser.raw({ type: '*/*', limit: '2gb' })
+)
 app.use(bodyparser.json({ limit: '1gb', type: 'application/json' }))
 
 // This allows the API to be used when CORS is enforced
@@ -33,7 +39,12 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
 app.use((req: Request, res: Response, next: NextFunction) => {
   console.log(`[${req.method}] <- ${req.url}`);
-  const logObject = { ...req.body }
+  let logObject
+  if (typeof req.body === 'object' && req.body.byteLength) {
+    logObject = { type: 'raw', byteLength: req.body.byteLength }
+  } else {
+    logObject = { ...req.body }
+  }
   console.log(prettyjson.render(logObject, { keysColor: 'blue' }))
   const originalJson = res.json.bind(res)
   res.json = (json: any) => {
@@ -44,7 +55,6 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next()
 })
 
-app.use(express.static('public'))
 
 // Unsecured pre-auth routes are added first
 const preAuthRoutes = Object.values(routes.preAuth);
@@ -65,20 +75,9 @@ preAuthRoutes.filter(route => (route as any).unsecured).forEach((route) => {
   }
 })
 
-// This ensures that HTTPS is used for uploads
-app.use((req: Request, res: Response, next: NextFunction) => {
-  if (
-    !req.secure &&
-    req.get('x-forwarded-proto') !== 'https'
-  ) {
-    return res.redirect('https://' + req.get('host') + req.url)
-  }
-  next()
-});
-
-// Secured pre-auth routes are added after the HTTPS redirect
+// Secured pre-auth routes are added next
 preAuthRoutes.filter(route => !(route as any).unsecured).forEach((route) => {
-  console.log(`adding route ${route.path} https required`)
+  console.log(`adding route ${route.path}`)
   // If we need middleware for a route, attach it
   if ((route as any).middleware) {
     app[route.type as 'get' | 'put' | 'post' | 'patch' | 'delete'](
@@ -96,13 +95,13 @@ preAuthRoutes.filter(route => !(route as any).unsecured).forEach((route) => {
     const wallet = await getWallet()
     const authMiddleware = createAuthMiddleware({
       wallet,
-      allowUnauthenticated: false
+      allowUnauthenticated: true
     })
 
     const paymentMiddleware = createPaymentMiddleware({
       wallet,
       calculateRequestPrice: async (req) => {
-
+        return 0
         if (req.url === '/upload') {
           const { fileSize, retentionPeriod } = (req.body as any) || {}
           if (!fileSize || !retentionPeriod) return 0
@@ -132,10 +131,9 @@ preAuthRoutes.filter(route => !(route as any).unsecured).forEach((route) => {
     app.use(authMiddleware);
     app.use(paymentMiddleware)
 
-
     // Secured, post-auth routes are added
     postAuthRoutes.forEach((route) => {
-      console.log(`adding https post-auth route ${route.path}`)
+      console.log(`adding post-auth route ${route.path}`)
       // If we need middleware for a route, attach it
       if ((route as any).middleware) {
         app[route.type as 'get' | 'put' | 'post' | 'patch' | 'delete'](
@@ -159,12 +157,9 @@ preAuthRoutes.filter(route => !(route as any).unsecured).forEach((route) => {
 
     app.listen(HTTP_PORT, () => {
       console.log('UHRP Storage Server listening on port', HTTP_PORT)
-
-      spawn('nginx', [], { stdio: [process.stdin, process.stdout, process.stderr] })
-
-      const addr = PrivateKey
-        .fromString(SERVER_PRIVATE_KEY).toPublicKey().toAddress()
-      console.log(`UHRP Host Address: ${addr}`)
+      const idKey = PrivateKey
+        .fromString(SERVER_PRIVATE_KEY).toPublicKey().toString()
+      console.log(`UHRP Host IdentityKey: ${idKey}`)
     })
 
   })();
