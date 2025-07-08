@@ -19,6 +19,7 @@ interface AdvertiseRequest extends Request {
     expiry: string
     hmac: string
   },
+  headers: Headers
   body: Uint8Array
 }
 
@@ -72,7 +73,8 @@ const advertiseHandler = async (req: AdvertiseRequest, res: Response<AdvertiseRe
       url: `${HOSTING_DOMAIN}/cdn/${req.query.objectID}`,
       uploaderIdentityKey: req.query.uploader,
       expiryTime,
-      contentLength: req.body.byteLength
+      contentLength: req.body.byteLength,
+      contentType: req.headers.get('content-type') || 'application/octet-stream'
     })
     res.status(200).json({ status: 'success' })
   } catch (error) {

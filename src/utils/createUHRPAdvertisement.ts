@@ -13,6 +13,7 @@ export interface AdvertisementParams {
   url: string
   contentLength: number
   confederacyHost?: string
+  contentType: string
 }
 
 export interface AdvertisementResponse {
@@ -25,7 +26,8 @@ export default async function createUHRPAdvertisement({
   expiryTime,
   url,
   uploaderIdentityKey,
-  contentLength
+  contentLength,
+  contentType
 }: AdvertisementParams): Promise<AdvertisementResponse> {
   if (typeof hash === 'string') {
     hash = StorageUtils.getHashFromURL(hash)
@@ -75,7 +77,7 @@ export default async function createUHRPAdvertisement({
         `uploader_identity_key_${uploaderIdentityKey}`,
         `expiry_time_${expiryTimeSeconds}`,
         `name_file`,
-        `content_type_application/octet-stream`,
+        `content_type_${contentType || 'application/octet-stream'}`,
         `size_${contentLength}`
       ]
     }],

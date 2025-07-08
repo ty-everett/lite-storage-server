@@ -18,3 +18,4 @@ staging.functions.env.yaml
 dist
 out
 app
+public/cdn/*
