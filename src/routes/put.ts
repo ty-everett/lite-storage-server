@@ -5,6 +5,7 @@ import fs from 'fs'
 import { getWallet } from '../utils/walletSingleton';
 import path from 'path';
 import bodyparser from 'body-parser';
+import { IncomingHttpHeaders } from 'http';
 
 const {
   HOSTING_DOMAIN
@@ -19,7 +20,7 @@ interface AdvertiseRequest extends Request {
     expiry: string
     hmac: string
   },
-  headers: Headers
+  headers: IncomingHttpHeaders
   body: Uint8Array
 }
 
@@ -74,7 +75,7 @@ const advertiseHandler = async (req: AdvertiseRequest, res: Response<AdvertiseRe
       uploaderIdentityKey: req.query.uploader,
       expiryTime,
       contentLength: req.body.byteLength,
-      contentType: req.headers.get('content-type') || 'application/octet-stream'
+      contentType: req.headers['content-type'] || 'application/octet-stream'
     })
     res.status(200).json({ status: 'success' })
   } catch (error) {
