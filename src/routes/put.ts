@@ -71,7 +71,7 @@ const advertiseHandler = async (req: AdvertiseRequest, res: Response<AdvertiseRe
     await createUHRPAdvertisement({
       hash: Hash.sha256(Array.from(req.body)),
       objectIdentifier: req.query.objectID,
-      url: `${HOSTING_DOMAIN}/cdn/${req.query.objectID}`,
+      url: `https://${HOSTING_DOMAIN}/cdn/${req.query.objectID}`,
       uploaderIdentityKey: req.query.uploader,
       expiryTime,
       contentLength: req.body.byteLength,
