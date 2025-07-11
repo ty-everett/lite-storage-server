@@ -10,6 +10,7 @@ import { getWallet } from './utils/walletSingleton'
 import routes from './routes'
 import getPriceForFile from './utils/getPriceForFile'
 import { getMetadata } from './utils/getMetadata'
+import { cdnMimeTypeMiddleware } from './utils/mimeTypeMiddleware'
 import path from 'path'
 
 const SERVER_PRIVATE_KEY = process.env.SERVER_PRIVATE_KEY as string
@@ -29,6 +30,8 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     next()
   }
 })
+// Add CDN MIME type middleware before static middleware
+app.use(cdnMimeTypeMiddleware)
 app.use(express.static(path.join(__dirname, '../public')))
 app.use(
   '/put',
@@ -54,6 +57,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next()
 })
 
+app.use(express.static('public'))
 
 // Unsecured pre-auth routes are added first
 const preAuthRoutes = Object.values(routes.preAuth);
