@@ -11,9 +11,10 @@
   "author": "BSV Association",
   "license": "SEE LICENSE IN LICENSE.txt",
   "dependencies": {
-    "@bsv/auth-express-middleware": "^1.2.0",
+    "@bsv/auth-express-middleware": "^1.2.1",
     "@bsv/payment-express-middleware": "^1.2.1",
-    "@bsv/sdk": "^1.6.11",
+    "@bsv/sdk": "^1.6.16",
+    "@bsv/wallet-toolbox": "^1.5.11",
     "@bsv/wallet-toolbox-client": "^1.5.9",
     "axios": "^0.21.1",
     "body-parser": "^1.20.1",
