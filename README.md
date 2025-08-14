@@ -9,14 +9,14 @@ authentication are handled with the BSV SDK and payment middleware.
 ## How it works
 
 - Requests are logged and routed through Express with CORS enabled and static
-  files served from the `public` directory【F:src/index.ts†L19-L38】
+  files served from the `public` directory
 - Auth and payment middleware calculate the price for uploads and renewals and
-  attach UHRP advertisements to the blockchain【F:src/index.ts†L96-L134】
+  attach UHRP advertisements to the blockchain
 - The `/upload` route returns a pre-signed `put` URL for file uploads and quotes
-  the cost based on file size and retention period【F:src/routes/upload.ts†L29-L89】
+  the cost based on file size and retention period
 - Pricing is determined by `getPriceForFile`, which converts retention time and
   file size into satoshis using a USD per‑GB/month rate and current BSV exchange
-  rate【F:src/utils/getPriceForFile.ts†L1-L55】
+  rate
 
 ## Environment variables
 
