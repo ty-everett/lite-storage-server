@@ -1,7 +1,7 @@
 # UHRP Storage Lite
 
 UHRP Storage Lite is a minimal storage host for the
-[Universal Hash Resolution Protocol (UHRP)](https://github.com/bitcoin-sv). It
+[Universal Hash Resolution Protocol (UHRP)](https://brc.dev/26). It
 provides a small Express.js server that advertises hosted files on the BSV
 blockchain and serves them from a local `public/cdn` directory. Pricing and
 authentication are handled with the BSV SDK and payment middleware.
@@ -56,7 +56,7 @@ on a DigitalOcean droplet) for production use.
 3. **Clone and build the project**:
 
    ```bash
-   git clone https://github.com/bitcoin-sv/uhrp-storage-server.git
+   git clone https://github.com/ty-everett/lite-storage-server.git
    cd uhrp-storage-server
    cp .env.example .env    # then edit .env with your settings
    npm install
