@@ -7,10 +7,10 @@ import find from './find';
 
 const routes = {
   preAuth: [
-    put,
-    quote
+    put
   ],
   postAuth: [
+    quote,
     upload,
     list,
     renew,
