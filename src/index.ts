@@ -1,7 +1,6 @@
 import 'dotenv/config'
 import express, { Request, Response, NextFunction } from 'express'
 import bodyparser from 'body-parser'
-import prettyjson from 'prettyjson'
 import { spawn } from 'child_process'
 import { PrivateKey } from '@bsv/sdk'
 import { createAuthMiddleware } from '@bsv/auth-express-middleware'
@@ -38,24 +37,6 @@ app.use(
   bodyparser.raw({ type: '*/*', limit: '2gb' })
 )
 app.use(bodyparser.json({ limit: '1gb', type: 'application/json' }))
-
-app.use((req: Request, res: Response, next: NextFunction) => {
-  console.log(`[${req.method}] <- ${req.url}`);
-  let logObject
-  if (typeof req.body === 'object' && req.body.byteLength) {
-    logObject = { type: 'raw', byteLength: req.body.byteLength }
-  } else {
-    logObject = { ...req.body }
-  }
-  console.log(prettyjson.render(logObject, { keysColor: 'blue' }))
-  const originalJson = res.json.bind(res)
-  res.json = (json: any) => {
-    console.log(`[${req.method}] -> ${req.url}`)
-    console.log(prettyjson.render(json, { keysColor: 'green' }))
-    return originalJson(json)
-  }
-  next()
-})
 
 app.use(express.static('public'))
 
