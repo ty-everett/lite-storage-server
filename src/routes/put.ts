@@ -5,7 +5,7 @@ import fs from 'fs'
 import { getWallet } from '../utils/walletSingleton';
 import path from 'path';
 import { IncomingHttpHeaders } from 'http';
-import { validateUploadTarget } from '../utils/uploadBoundary';
+import { uploadHmacIsValid, validateUploadTarget } from '../utils/uploadBoundary';
 
 const {
   HOSTING_DOMAIN
@@ -58,12 +58,12 @@ const advertiseHandler = async (req: AdvertiseRequest, res: Response<AdvertiseRe
 
   // Verify hmac
   const str = `fileSize=${req.query.fileSize}&objectID=${req.query.objectID}&expiry=${req.query.expiry}&uploader=${req.query.uploader}`
-  const { valid } = await wallet.verifyHmac({
-    protocolID: [2, 'storage upload'],
-    keyID: '1',
-    data: Utils.toArray(str, 'utf8'),
-    hmac: Utils.toArray(req.query.hmac, 'hex')
-  })
+  const valid = await uploadHmacIsValid(async () => await wallet.verifyHmac({
+      protocolID: [2, 'storage upload'],
+      keyID: '1',
+      data: Utils.toArray(str, 'utf8'),
+      hmac: Utils.toArray(req.query.hmac, 'hex')
+    }))
   if (!valid) {
     return res.status(403).json({
       status: 'error',

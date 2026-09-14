@@ -38,3 +38,13 @@ export function validateUploadTarget (
 
   return { objectID, fileSize: expectedSize, destination }
 }
+
+export async function uploadHmacIsValid (
+  verify: () => Promise<{ valid: boolean }>
+): Promise<boolean> {
+  try {
+    return (await verify()).valid === true
+  } catch {
+    return false
+  }
+}
