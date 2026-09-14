@@ -15,10 +15,10 @@
     "@bsv/payment-express-middleware": "^1.2.3",
     "@bsv/sdk": "^1.6.22",
     "@bsv/wallet-toolbox-client": "^1.5.20",
-    "axios": "^0.21.1",
-    "body-parser": "^1.20.1",
+    "axios": "^1.20.0",
+    "body-parser": "^1.20.8",
     "dotenv": "^16.4.7",
-    "express": "^4.18.2",
+    "express": "^4.22.3",
     "prettyjson": "^1.2.5"
   },
   "scripts": {
@@ -26,8 +26,16 @@
     "dev": "nodemon --watch .env --watch src --exec \"node --inspect=0.0.0.0 -r ts-node/register src/index.ts\"",
     "build": "tsc",
     "test": "jest",
+    "test:security": "npm run build && node scripts/test-upload-boundary.js",
     "test:watch": "jest --watch",
     "lint": "standard --fix ."
+  },
+  "overrides": {
+    "express@5.1.0": {
+      "router": {
+        "path-to-regexp": "8.4.0"
+      }
+    }
   },
   "devDependencies": {
     "@types/body-parser": "^1.19.5",

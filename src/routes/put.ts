@@ -1,11 +1,11 @@
 import createUHRPAdvertisement from '../utils/createUHRPAdvertisement';
 import { Request, Response } from 'express';
-import { Hash, StorageUtils, Utils } from '@bsv/sdk';
+import { Hash, Utils } from '@bsv/sdk';
 import fs from 'fs'
 import { getWallet } from '../utils/walletSingleton';
 import path from 'path';
-import bodyparser from 'body-parser';
 import { IncomingHttpHeaders } from 'http';
+import { validateUploadTarget } from '../utils/uploadBoundary';
 
 const {
   HOSTING_DOMAIN
@@ -33,33 +33,56 @@ interface AdvertiseResponse {
 const advertiseHandler = async (req: AdvertiseRequest, res: Response<AdvertiseResponse>) => {
   const wallet = await getWallet()
 
-  // Verify size
-  if (Number(req.query.fileSize) !== req.body.byteLength) {
+  if (typeof req.query.expiry !== 'string' || typeof req.query.uploader !== 'string') {
     return res.status(400).json({
       status: 'error',
-      description: 'Size mismatch'
+      description: 'Invalid upload request'
+    })
+  }
+
+  let target
+  try {
+    target = validateUploadTarget(
+      path.join(__dirname, '../../public/cdn'),
+      req.query.objectID,
+      req.query.fileSize,
+      req.body?.byteLength,
+      req.query.hmac
+    )
+  } catch (error) {
+    return res.status(400).json({
+      status: 'error',
+      description: error instanceof Error ? error.message : 'Invalid upload request'
     })
   }
 
   // Verify hmac
   const str = `fileSize=${req.query.fileSize}&objectID=${req.query.objectID}&expiry=${req.query.expiry}&uploader=${req.query.uploader}`
-    const { valid } = await wallet.verifyHmac({
-      protocolID: [2, 'storage upload'],
-      keyID: '1',
-      data: Utils.toArray(str, 'utf8'),
-      hmac: Utils.toArray(req.query.hmac, 'hex')
-    })
-
-  // Verify no file exists with the same object ID
-  if (fs.existsSync(path.join(__dirname, `../../public/cdn/${req.query.objectID}`))) {
-    return res.status(400).json({
+  const { valid } = await wallet.verifyHmac({
+    protocolID: [2, 'storage upload'],
+    keyID: '1',
+    data: Utils.toArray(str, 'utf8'),
+    hmac: Utils.toArray(req.query.hmac, 'hex')
+  })
+  if (!valid) {
+    return res.status(403).json({
       status: 'error',
-      description: 'File exists'
+      description: 'Invalid upload authorization'
     })
   }
 
-  // Write file
-  fs.writeFileSync(path.join(__dirname, `../../public/cdn/${req.query.objectID}`), req.body)
+  // An exclusive create prevents overwrites and closes the exists/write race.
+  try {
+    fs.writeFileSync(target.destination, req.body, { flag: 'wx', mode: 0o640 })
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
+      return res.status(409).json({
+        status: 'error',
+        description: 'File exists'
+      })
+    }
+    throw error
+  }
 
   // Create UHRP ad under /cdn
   try {
@@ -70,11 +93,11 @@ const advertiseHandler = async (req: AdvertiseRequest, res: Response<AdvertiseRe
     const expiryTime = Math.floor(new Date(req.query.expiry).getTime() / 1000)
     await createUHRPAdvertisement({
       hash: Hash.sha256(Array.from(req.body)),
-      objectIdentifier: req.query.objectID,
+      objectIdentifier: target.objectID,
       url: `https://${HOSTING_DOMAIN}/cdn/${req.query.objectID}`,
       uploaderIdentityKey: req.query.uploader,
       expiryTime,
-      contentLength: req.body.byteLength,
+      contentLength: target.fileSize,
       contentType: req.headers['content-type'] || 'application/octet-stream'
     })
     res.status(200).json({ status: 'success' })
