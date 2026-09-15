@@ -10,6 +10,7 @@ import routes from './routes'
 import getPriceForFile from './utils/getPriceForFile'
 import { getMetadata } from './utils/getMetadata'
 import { cdnMimeTypeMiddleware } from './utils/mimeTypeMiddleware'
+import { isAuthMiddlewarePath, isPaymentMiddlewarePath } from './utils/requestBoundary'
 import path from 'path'
 
 const SERVER_PRIVATE_KEY = process.env.SERVER_PRIVATE_KEY as string
@@ -43,6 +44,7 @@ app.use(express.static('public'))
 // Unsecured pre-auth routes are added first
 const preAuthRoutes = Object.values(routes.preAuth);
 const postAuthRoutes = Object.values(routes.postAuth);
+const postAuthPaths = new Set(postAuthRoutes.map(route => route.path));
 
 // Cycle through pre-auth routes
 preAuthRoutes.filter(route => (route as any).unsecured).forEach((route) => {
@@ -78,8 +80,7 @@ preAuthRoutes.filter(route => !(route as any).unsecured).forEach((route) => {
   ; (async () => {
     const wallet = await getWallet()
     const authMiddleware = createAuthMiddleware({
-      wallet,
-      allowUnauthenticated: true
+      wallet
     })
 
     const paymentMiddleware = createPaymentMiddleware({
@@ -111,8 +112,14 @@ preAuthRoutes.filter(route => !(route as any).unsecured).forEach((route) => {
       }
     })
 
-    app.use(authMiddleware);
-    app.use(paymentMiddleware)
+    app.use((req, res, next) => {
+      if (!isAuthMiddlewarePath(req.path, postAuthPaths)) return next()
+      void authMiddleware(req, res, next)
+    })
+    app.use((req, res, next) => {
+      if (!isPaymentMiddlewarePath(req.path, postAuthPaths)) return next()
+      void paymentMiddleware(req, res, next)
+    })
 
     // Secured, post-auth routes are added
     postAuthRoutes.forEach((route) => {
