@@ -29,13 +29,6 @@
     "test:watch": "jest --watch",
     "lint": "standard --fix ."
   },
-  "overrides": {
-    "express@5.1.0": {
-      "router": {
-        "path-to-regexp": "8.4.0"
-      }
-    }
-  },
   "devDependencies": {
     "@types/body-parser": "1.19.6",
     "@types/express": "5.0.3",
