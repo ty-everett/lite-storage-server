@@ -1,6 +1,7 @@
 const assert = require('assert')
 const path = require('path')
 const { uploadHmacIsValid, validateUploadTarget } = require('../out/utils/uploadBoundary')
+const { isAuthMiddlewarePath, isPaymentMiddlewarePath } = require('../out/utils/requestBoundary')
 
 const root = '/srv/uhrp/public/cdn'
 const objectID = '123456789ABCDEFGHJKLMN'
@@ -15,6 +16,14 @@ for (const invalid of ['../package.json', '../../out/index.js', '/etc/passwd', '
 }
 assert.throws(() => validateUploadTarget(root, objectID, '5', 4, hmac), /Size mismatch/)
 assert.throws(() => validateUploadTarget(root, objectID, '4', 4, '00'), /Invalid upload authorization/)
+
+const postAuthPaths = new Set(['/quote', '/upload', '/list', '/renew', '/find'])
+assert.strictEqual(isAuthMiddlewarePath('/.well-known/auth', postAuthPaths), true)
+assert.strictEqual(isPaymentMiddlewarePath('/.well-known/auth', postAuthPaths), false)
+assert.strictEqual(isAuthMiddlewarePath('/upload', postAuthPaths), true)
+assert.strictEqual(isPaymentMiddlewarePath('/upload', postAuthPaths), true)
+assert.strictEqual(isAuthMiddlewarePath('/', postAuthPaths), false)
+assert.strictEqual(isPaymentMiddlewarePath('/not-a-route', postAuthPaths), false)
 
 async function testHmacBoundary () {
   assert.strictEqual(await uploadHmacIsValid(async () => ({ valid: true })), true)
