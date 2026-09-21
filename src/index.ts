@@ -12,11 +12,23 @@ import { getMetadata } from './utils/getMetadata'
 import { cdnMimeTypeMiddleware } from './utils/mimeTypeMiddleware'
 import { isAuthMiddlewarePath, isPaymentMiddlewarePath } from './utils/requestBoundary'
 import path from 'path'
+import fs from 'fs'
 
 const SERVER_PRIVATE_KEY = process.env.SERVER_PRIVATE_KEY as string
 const HTTP_PORT = process.env.HTTP_PORT || 8080
 
 const app = express()
+let draining = false
+const cdnRoot = path.resolve('public/cdn')
+
+// This is intentionally independent of the paid/authenticated API routes.
+// Readiness is withdrawn before SIGTERM so the Gateway can stop selecting a
+// terminating member while existing requests finish.
+app.get('/healthz', (_req, res) => {
+  const ready = !draining && fs.existsSync(cdnRoot)
+  res.status(ready ? 200 : 503).json({ ready })
+})
+process.on('SIGUSR2', () => { draining = true })
 // This allows the API to be used when CORS is enforced
 app.use((req: Request, res: Response, next: NextFunction) => {
   res.header('Access-Control-Allow-Origin', '*')
@@ -145,11 +157,16 @@ preAuthRoutes.filter(route => !(route as any).unsecured).forEach((route) => {
       })
     })
 
-    app.listen(HTTP_PORT, () => {
+    const server = app.listen(HTTP_PORT, () => {
       console.log('UHRP Storage Server listening on port', HTTP_PORT)
       const idKey = PrivateKey
         .fromString(SERVER_PRIVATE_KEY).toPublicKey().toString()
       console.log(`UHRP Host IdentityKey: ${idKey}`)
+    })
+    process.on('SIGTERM', () => {
+      draining = true
+      server.close(() => process.exit(0))
+      setTimeout(() => process.exit(1), 25000).unref()
     })
 
   })();
