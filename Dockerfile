@@ -16,4 +16,4 @@ COPY --from=build --chown=10001:10001 /app/out ./out
 COPY --chown=10001:10001 public ./public
 USER 10001:10001
 EXPOSE 9002
-CMD ["node", "out/src/index.js"]
+CMD ["node", "out/index.js"]
