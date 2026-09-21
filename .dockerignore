@@ -1,0 +1,6 @@
+.git
+.env
+node_modules
+out
+public/cdn/*
+!public/cdn/.gitkeep
