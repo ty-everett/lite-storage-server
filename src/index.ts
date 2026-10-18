@@ -11,6 +11,7 @@ import getPriceForFile from './utils/getPriceForFile'
 import { getMetadata } from './utils/getMetadata'
 import { cdnMimeTypeMiddleware } from './utils/mimeTypeMiddleware'
 import { isAuthMiddlewarePath, isPaymentMiddlewarePath } from './utils/requestBoundary'
+import { gracefulHttpShutdown } from './utils/gracefulHttpShutdown'
 import path from 'path'
 import fs from 'fs'
 
@@ -165,8 +166,10 @@ preAuthRoutes.filter(route => !(route as any).unsecured).forEach((route) => {
     })
     process.on('SIGTERM', () => {
       draining = true
-      server.close(() => process.exit(0))
-      setTimeout(() => process.exit(1), 25000).unref()
+      gracefulHttpShutdown(server).then(() => process.exit(0)).catch(error => {
+        console.error('HTTP shutdown failed:', error.message)
+        process.exit(1)
+      })
     })
 
   })();
