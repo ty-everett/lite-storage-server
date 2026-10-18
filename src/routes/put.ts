@@ -1,9 +1,9 @@
 import createUHRPAdvertisement from '../utils/createUHRPAdvertisement';
 import { Request, Response } from 'express';
 import { Hash, Utils } from '@bsv/sdk';
-import fs from 'fs'
 import { getWallet } from '../utils/walletSingleton';
 import path from 'path';
+import { storeCdnObject } from '../utils/cdnStorage';
 import { IncomingHttpHeaders } from 'http';
 import { uploadHmacIsValid, validateUploadTarget } from '../utils/uploadBoundary';
 
@@ -73,7 +73,7 @@ const advertiseHandler = async (req: AdvertiseRequest, res: Response<AdvertiseRe
 
   // An exclusive create prevents overwrites and closes the exists/write race.
   try {
-    fs.writeFileSync(target.destination, req.body, { flag: 'wx', mode: 0o640 })
+    await storeCdnObject(path.dirname(target.destination), target.objectID, req.body)
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
       return res.status(409).json({

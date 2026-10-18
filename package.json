@@ -25,7 +25,7 @@
     "dev": "nodemon --watch .env --watch src --exec \"node --inspect=0.0.0.0 -r ts-node/register src/index.ts\"",
     "build": "tsc",
     "test": "jest",
-    "test:security": "npm run build && node scripts/test-upload-boundary.js",
+    "test:security": "npm run build && node scripts/test-upload-boundary.js && node scripts/test-cdn-storage.js",
     "test:watch": "jest --watch",
     "lint": "standard --fix ."
   },
