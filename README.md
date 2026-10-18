@@ -119,3 +119,31 @@ npm run dev
 
 See [LICENSE.txt](LICENSE.txt) for licensing information.
 
+
+### Planned CDN volume migration
+
+`CDN_MIRROR_DIR` optionally makes an upload complete an exclusive, flushed write
+on two storage roots before creating its advertisement. With the variable unset,
+there is one exclusive primary write at the existing `public/cdn` path. A failed
+write removes only files created by that request, guarded by their filesystem
+identity; existing objects are never overwritten or removed.
+
+Keep **one physical first-write volume** across a migration from A to B:
+
+1. Mount A at `public/cdn`, mount B at `CDN_MIRROR_DIR`, and use
+   `CDN_WRITE_ORDER=mirror-first` (the default when mirroring). Wait until every
+   serving process uses the mirrored writer.
+2. Backfill A into B without replacing existing B objects. Independently verify
+   the complete file set and content hashes while mirrored writes continue.
+3. Promote B at `public/cdn`, retain A as `CDN_MIRROR_DIR`, and set
+   `CDN_WRITE_ORDER=primary-first`. Old and new processes both create exclusively
+   on physical B first, so a duplicate request cannot succeed in both versions.
+4. After all old processes and accepted requests finish and both copies pass
+   validation, remove the mirror mount/variable. Retain the previous volume for
+   the documented rollback period.
+
+Do not flip the physical first writer during a rolling promotion, claim a
+second path on the same filesystem as independent storage, or move a volume
+before its remaining readers/writers have drained. An absent, unwritable or
+conflicting mirror fails the upload; it is never silently ignored. This feature
+does not itself provision, copy, switch, or retire any volume.
