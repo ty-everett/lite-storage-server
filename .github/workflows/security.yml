@@ -24,3 +24,14 @@ jobs:
       - run: npm ci
       - run: npm run test:security
       - run: npm audit --omit=dev --audit-level=high
+      - name: Build and check the production runtime
+        run: |
+          docker build --pull --tag "uhrp-security-ci:$GITHUB_SHA" .
+          docker run --rm --network none --entrypoint node "uhrp-security-ci:$GITHUB_SHA" -e '
+            const assert = require("node:assert/strict");
+            const fs = require("node:fs");
+            require("@bsv/sdk");
+            assert.equal(process.getuid(), 10001);
+            assert.equal(fs.existsSync("/usr/local/bin/npm"), false);
+            assert.equal(fs.existsSync("/usr/local/lib/node_modules/npm"), false);
+          '
