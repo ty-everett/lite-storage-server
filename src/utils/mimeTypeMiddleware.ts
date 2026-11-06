@@ -92,7 +92,7 @@ async function getMimeTypeFromAdvertisement(objectIdentifier: string): Promise<s
       }
     }
 
-    // Cache the result (even if null)
+    // Cache positive results; a later request can discover a new advertisement.
     if (mimeType) {
       mimeTypeCache.set(cacheKey, mimeType)
       cacheTimestamps.set(cacheKey, Date.now())
@@ -110,7 +110,20 @@ async function getMimeTypeFromAdvertisement(objectIdentifier: string): Promise<s
  */
 function detectMimeTypeFromContent(filePath: string): string {
   try {
-    const buffer = fs.readFileSync(filePath, { encoding: null })
+    // Detection uses only this prefix, regardless of the size of the CDN object.
+    const prefix = Buffer.alloc(512)
+    const fd = fs.openSync(filePath, 'r')
+    let bytesRead = 0
+    try {
+      while (bytesRead < prefix.length) {
+        const count = fs.readSync(fd, prefix, bytesRead, prefix.length - bytesRead, null)
+        if (count === 0) break
+        bytesRead += count
+      }
+    } finally {
+      fs.closeSync(fd)
+    }
+    const buffer = prefix.subarray(0, bytesRead)
     const firstBytes = buffer.slice(0, 16)
 
     // Check for common file signatures (magic bytes)
